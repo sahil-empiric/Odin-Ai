@@ -1,0 +1,166 @@
+"use client"
+
+import type React from "react"
+
+import { useEffect, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { useAuth } from "@/contexts/auth-context"
+import { createBrowserClient } from "@/lib/supabase"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import type { RoomType } from "@/types/database.types"
+
+const supabase = createBrowserClient()
+
+export default function NewChatPage() {
+  const { user } = useAuth()
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  const [title, setTitle] = useState("")
+  const [roomType, setRoomType] = useState<RoomType>("single")
+  const [membershipTier, setMembershipTier] = useState<"free" | "basic" | "premium">("free")
+  const [isCreating, setIsCreating] = useState(false)
+  const [error, setError] = useState("")
+
+  useEffect(() => {
+    const type = searchParams.get("type") as RoomType
+    if (type && ["single", "comparison", "roundtable"].includes(type)) {
+      setRoomType(type)
+    }
+
+    const fetchUserProfile = async () => {
+      if (!user) return
+
+      try {
+        const { data: profile } = await supabase.from("profiles").select("membership_tier").eq("id", user.id).single()
+
+        if (profile) {
+          setMembershipTier(profile.membership_tier as "free" | "basic" | "premium")
+        }
+      } catch (error) {
+        console.error("Error fetching user profile:", error)
+      }
+    }
+
+    fetchUserProfile()
+  }, [searchParams, user])
+
+  const handleCreateChat = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!user) return
+
+    // Check if user has access to this room type
+    if (
+      (roomType === "comparison" && membershipTier === "free") ||
+      (roomType === "roundtable" && membershipTier !== "premium")
+    ) {
+      setError("Your membership tier does not allow access to this room type")
+      return
+    }
+
+    setIsCreating(true)
+    setError("")
+
+    try {
+      // Create new chat
+      const { data: chat, error: chatError } = await supabase
+        .from("chats")
+        .insert({
+          user_id: user.id,
+          title: title || `New ${roomType.charAt(0).toUpperCase() + roomType.slice(1)} Chat`,
+          room_type: roomType,
+        })
+        .select()
+        .single()
+
+      if (chatError) throw chatError
+
+      // Redirect to the new chat
+      router.push(`/chat/${chat.id}`)
+    } catch (error) {
+      console.error("Error creating chat:", error)
+      setError("Failed to create chat. Please try again.")
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  const handleCancel = () => {
+    router.push("/dashboard")
+  }
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-neutral-900 p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle className="text-2xl text-center">Create New Chat</CardTitle>
+        </CardHeader>
+        <form onSubmit={handleCreateChat}>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="title">Chat Title (Optional)</Label>
+              <Input
+                id="title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder={`New ${roomType.charAt(0).toUpperCase() + roomType.slice(1)} Chat`}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Room Type</Label>
+              <div className="grid grid-cols-3 gap-2">
+                <Button
+                  type="button"
+                  variant={roomType === "single" ? "default" : "outline"}
+                  onClick={() => setRoomType("single")}
+                  className="w-full"
+                >
+                  Single
+                </Button>
+                <Button
+                  type="button"
+                  variant={roomType === "comparison" ? "default" : "outline"}
+                  onClick={() => setRoomType("comparison")}
+                  className="w-full"
+                  disabled={membershipTier === "free"}
+                >
+                  Comparison
+                </Button>
+                <Button
+                  type="button"
+                  variant={roomType === "roundtable" ? "default" : "outline"}
+                  onClick={() => setRoomType("roundtable")}
+                  className="w-full"
+                  disabled={membershipTier !== "premium"}
+                >
+                  Round Table
+                </Button>
+              </div>
+              {roomType === "comparison" && membershipTier === "free" && (
+                <p className="text-xs text-amber-500">Requires Basic or Premium tier</p>
+              )}
+              {roomType === "roundtable" && membershipTier !== "premium" && (
+                <p className="text-xs text-amber-500">Requires Premium tier</p>
+              )}
+            </div>
+
+            {error && <p className="text-sm text-red-500">{error}</p>}
+          </CardContent>
+          <CardFooter className="flex justify-between mt-10">
+            <Button type="button" variant="outline" onClick={handleCancel}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isCreating}>
+              {isCreating ? "Creating..." : "Create Chat"}
+            </Button>
+          </CardFooter>
+        </form>
+      </Card>
+    </div>
+  )
+}
