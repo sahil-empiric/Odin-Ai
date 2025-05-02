@@ -46,20 +46,21 @@ export default function Home() {
     }
 
     return (
-        <div className="flex h-screen bg-background">
-            <Sidebar
-                isOpen={isSidebarOpen}
-                toggleSidebar={toggleSidebar}
-                chatMode={chatMode}
-                onChatModeChange={handleChatModeChange}
-            />
-            <ChatInterface
-                isSidebarOpen={isSidebarOpen}
-                toggleSidebar={toggleSidebar}
-                chatMode={chatMode}
-                selectedModels={selectedModels}
-                onModelSelect={handleModelSelection}
-            />
-        </div>
+        // <div className="flex h-screen bg-background">
+        //     <Sidebar
+        //         isOpen={isSidebarOpen}
+        //         toggleSidebar={toggleSidebar}
+        //         chatMode={chatMode}
+        //         onChatModeChange={handleChatModeChange}
+        //     />
+        //     <ChatInterface
+        //         isSidebarOpen={isSidebarOpen}
+        //         toggleSidebar={toggleSidebar}
+        //         chatMode={chatMode}
+        //         selectedModels={selectedModels}
+        //         onModelSelect={handleModelSelection}
+        //     />
+        // </div>
+        <ChatInterface />
     )
 }
