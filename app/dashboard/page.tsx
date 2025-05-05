@@ -8,11 +8,12 @@ import { createBrowserClient } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Chat, MembershipTier, RoomType } from "@/types/database.types"
+import { signOut } from "@/utils/supabase/action"
 
 const supabase = createBrowserClient()
 
 export default function DashboardPage() {
-  const { user, signOut } = useAuth()
+  const { user } = useAuth()
   const [chats, setChats] = useState<Chat[]>([])
   const [membershipTier, setMembershipTier] = useState<MembershipTier>("free")
   const [isLoading, setIsLoading] = useState(false)

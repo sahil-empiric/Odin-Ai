@@ -40,7 +40,6 @@ export default function LoginPage() {
     try {
       const response = await signInWithGoogle()
       console.log("🚀 ~ handleGoogleSignIn ~ response:", response)
-      router.push("/dashboard")
     } catch (error) {
       console.error("Google sign in error:", error)
       setError("Failed to sign in with Google.")
