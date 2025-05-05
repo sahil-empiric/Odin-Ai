@@ -182,7 +182,7 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card className={membershipTier === "free" ? "border-primary" : ""}>
                 <CardHeader>
-                  <CardTitle>Free Tier</CardTitle>
+                  <CardTitle>Standard Tier</CardTitle>
                   <CardDescription>Basic access to AI chat</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -205,7 +205,7 @@ export default function DashboardPage() {
 
               <Card className={membershipTier === "basic" ? "border-primary" : ""}>
                 <CardHeader>
-                  <CardTitle>Basic Tier</CardTitle>
+                  <CardTitle>Advanced Tier</CardTitle>
                   <CardDescription>Enhanced AI chat capabilities</CardDescription>
                 </CardHeader>
                 <CardContent>
