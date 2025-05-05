@@ -5,7 +5,6 @@ import type React from "react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,7 +17,6 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const { signUp } = useAuth()
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -47,7 +45,6 @@ export default function RegisterPage() {
   const handleGoogleSignIn = async () => {
     try {
       await signInWithGoogle()
-      router.push("/dashboard")
     } catch (error) {
       console.error("Google sign in error:", error)
       setError("Failed to sign in with Google.")
@@ -62,7 +59,7 @@ export default function RegisterPage() {
           <CardDescription className="text-center">Enter your details to create your account</CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={signup} className="space-y-4">
+          <form className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -97,8 +94,8 @@ export default function RegisterPage() {
               />
             </div>
             {error && <p className="text-sm text-red-500">{error}</p>}
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Creating account..." : "Create Account"}
+            <Button formAction={signup} type="submit" className="w-full">
+              Create Account
             </Button>
           </form>
           <div className="mt-4 relative">

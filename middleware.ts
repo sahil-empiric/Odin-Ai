@@ -4,34 +4,21 @@ import { createClientForServer } from '@/utils/supabase/server'
 export async function middleware(request: NextRequest) {
   // Skip middleware on API routes and other non-page routes
   if (request.nextUrl.pathname.startsWith('/api/') ||
-    request.nextUrl.pathname.includes('.')) {
+    request.nextUrl.pathname.includes('.') ||
+    request.nextUrl.pathname.startsWith('/callback')) {
     return NextResponse.next()
   }
+
+  const path = request.nextUrl.pathname
+
+  // Define public routes that don't require authentication
+  const publicRoutes = ['/login', '/register', '/signup-success', '/error', '/auth/auth-code-error', '/', '/callback']
 
   // Create a Supabase client instance
   const supabase = await createClientForServer()
 
   // Get the user's authentication status
   const { data: { user } } = await supabase.auth.getUser()
-  // console.log("🚀 ~ middleware ~ user:", user)
-
-  const path = request.nextUrl.pathname
-
-  // Define public routes that don't require authentication
-  const publicRoutes = ['/login', '/register']
-
-  // Check for Supabase auth cookie directly (either email/password or OAuth)
-  const hasAuthCookie = request.cookies.has('sb-tevkpdkthxxeeejvzkwj-auth-token') ||
-    request.cookies.has('sb-tevkpdkthxxeeejvzkwj-auth-token-code-verifier')
-
-  // If there's an auth cookie present and user is on a public route, redirect to home
-  if (hasAuthCookie && publicRoutes.includes(path)) {
-    const dashboardUrl = new URL(`/dashboard`, request.url)
-    // Prevent redirect loops by checking if we're already at the destination
-    if (request.nextUrl.pathname !== dashboardUrl.pathname) {
-      return NextResponse.redirect(dashboardUrl)
-    }
-  }
 
   // If the user is not authenticated and trying to access a restricted route
   if (!user && !publicRoutes.includes(path) && path !== '/') {
@@ -39,15 +26,6 @@ export async function middleware(request: NextRequest) {
     // Prevent redirect loops
     if (request.nextUrl.pathname !== loginUrl.pathname) {
       return NextResponse.redirect(loginUrl)
-    }
-  }
-
-  // If the user is authenticated and trying to access a public route
-  if (user && publicRoutes.includes(path)) {
-    const homeUrl = new URL(`/`, request.url)
-    // Prevent redirect loops
-    if (request.nextUrl.pathname !== homeUrl.pathname) {
-      return NextResponse.redirect(homeUrl)
     }
   }
 

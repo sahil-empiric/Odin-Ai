@@ -17,6 +17,7 @@ export async function login(formData: FormData) {
 
     const { error } = await supabase.auth.signInWithPassword(data)
 
+    console.log("🚀 ~ login ~ error:", error)
     if (error) {
         redirect('/error')
     }
@@ -33,16 +34,21 @@ export async function signup(formData: FormData) {
     const data = {
         email: formData.get('email') as string,
         password: formData.get('password') as string,
+        options: {
+            emailRedirectTo: `http://localhost:3000/api/callback?next=/dashboard`,
+        }
     }
 
-    const { error } = await supabase.auth.signUp(data)
+    const { data: signupData, error } = await supabase.auth.signUp(data)
 
     if (error) {
+        console.error('Signup error:', error)
         redirect('/error')
     }
 
-    revalidatePath('/', 'layout')
-    redirect('/dashboard')
+    // Always redirect to the signup success page
+    // This way we avoid any redirect loops even if Supabase behavior changes
+    redirect('/signup-success')
 }
 
 export async function signInWithGoogle() {
@@ -51,7 +57,7 @@ export async function signInWithGoogle() {
     const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-            redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+            redirectTo: `http://localhost:3000/api/callback`,
         },
     })
 
