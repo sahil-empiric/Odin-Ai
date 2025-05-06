@@ -28,7 +28,7 @@ export async function POST(req: Request) {
                 model === 'google' ? 'gemini-1.5-pro' :
                     model === 'anthropic' ? 'claude-3-opus-20240229' :
                         model === 'mistral' ? 'mistral-large-latest' :
-                            model === 'deepseek' ? 'deepseek-reasoner' : 'gpt-4o'
+                            model === 'deepseek' ? 'deepseek-reasoner' : 'gpt-4o-mini'
             ),
             messages
         })
