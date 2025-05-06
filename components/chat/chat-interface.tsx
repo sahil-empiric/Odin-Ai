@@ -6,8 +6,9 @@ import ChatSidebar from "./chat-sidebar"
 import SingleChatView from "./single-chat-view"
 import ComparisonChatView from "./comparison-chat-view"
 import { SidebarProvider } from "@/components/ui/sidebar"
+import { Button } from "@/components/ui/button"
 
-export type ChatMode = "single" | "comparison"
+export type ChatMode = "single" | "comparison" | "diagnostic"
 export type ChatHistory = {
     id: string
     title: string
@@ -19,8 +20,9 @@ export type ChatHistory = {
 export default function ChatInterface() {
     const [sidebarOpen, setSidebarOpen] = useState(true)
     const [chatMode, setChatMode] = useState<ChatMode>("single")
-    const [selectedModels, setSelectedModels] = useState<string[]>(["gpt-4o"])
+    const [selectedModel, setSelectedModel] = useState<string[]>(["openai"])
     const [currentChatId, setCurrentChatId] = useState<string | null>(null)
+    const userTier = "premium"
     const isMobile = useMediaQuery("(max-width: 768px)")
 
     // Sample chat history data
@@ -30,28 +32,28 @@ export default function ChatInterface() {
             title: "How to build a website",
             date: new Date(2023, 4, 10),
             mode: "single",
-            models: ["gpt-4o"],
+            models: ["openai"],
         },
         {
             id: "2",
             title: "JavaScript vs TypeScript",
             date: new Date(),
             mode: "comparison",
-            models: ["gpt-4o", "claude-3-opus"],
+            models: ["openai", "anthropic"],
         },
         {
             id: "3",
             title: "React hooks explained",
             date: new Date(),
             mode: "single",
-            models: ["gpt-4o"],
+            models: ["openai"],
         },
         {
             id: "4",
             title: "CSS Grid vs Flexbox",
             date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
             mode: "comparison",
-            models: ["gpt-4o", "claude-3-opus"],
+            models: ["openai", "anthropic"],
         },
     ])
 
@@ -66,7 +68,7 @@ export default function ChatInterface() {
         setChatHistory([newChat, ...chatHistory])
         setCurrentChatId(newChat.id)
         setChatMode(mode)
-        setSelectedModels(models)
+        setSelectedModel(models)
 
         // Close sidebar on mobile after creating a new chat
         if (isMobile) {
@@ -79,7 +81,7 @@ export default function ChatInterface() {
         if (chat) {
             setCurrentChatId(chatId)
             setChatMode(chat.mode)
-            setSelectedModels(chat.models)
+            setSelectedModel(chat.models)
 
             // Close sidebar on mobile after selecting a chat
             if (isMobile) {
@@ -100,19 +102,22 @@ export default function ChatInterface() {
                     onCreateNewChat={createNewChat}
                 />
                 <main className="flex-1 flex flex-col h-full overflow-hidden">
+                   
                     {chatMode === "single" ? (
                         <SingleChatView
-                            selectedModel={selectedModels[0]}
-                            setSelectedModel={(model) => setSelectedModels([model])}
+                            selectedModel={selectedModel[0]}
+                            setSelectedModel={(model) => setSelectedModel([model])}
                             sidebarOpen={sidebarOpen}
                             setSidebarOpen={setSidebarOpen}
+                            userTier={userTier}
                         />
                     ) : (
                         <ComparisonChatView
-                            selectedModels={selectedModels}
-                            setSelectedModels={setSelectedModels}
+                            selectedModels={selectedModel}
+                            setSelectedModels={setSelectedModel}
                             sidebarOpen={sidebarOpen}
                             setSidebarOpen={setSidebarOpen}
+                            userTier={userTier}
                         />
                     )}
                 </main>

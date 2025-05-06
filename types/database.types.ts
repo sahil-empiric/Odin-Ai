@@ -1,6 +1,6 @@
 export type MembershipTier = "free" | "basic" | "premium"
 
-export type ModelProvider = "openai" | "deepseek" | "gemini" | "anthropic" | "mistral"
+export type ModelProvider = "openai" | "deepseek" | "google" | "anthropic" | "mistral"
 
 export type RoomType = "single" | "comparison" | "roundtable"
 

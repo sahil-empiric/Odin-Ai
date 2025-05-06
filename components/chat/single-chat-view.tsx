@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -14,47 +14,15 @@ import {
 import { ChatInput } from "./chat-input"
 import { Menu, ChevronDown, User, Bot, PanelLeft } from "lucide-react"
 import { useMediaQuery } from "@/hooks/use-media-query"
-
-
-// Sample AI models
-const AI_MODELS = [
-    { id: "gpt-4o", name: "GPT-4o" },
-    { id: "gpt-4", name: "GPT-4" },
-    { id: "gpt-3.5-turbo", name: "GPT-3.5 Turbo" },
-    { id: "claude-3-opus", name: "Claude 3 Opus" },
-    { id: "claude-3-sonnet", name: "Claude 3 Sonnet" },
-    { id: "llama-3", name: "Llama 3" },
-]
-
-// Sample messages
-const SAMPLE_MESSAGES = [
-    {
-        id: "1",
-        role: "user",
-        content: "Hello, can you explain how React hooks work?",
-        timestamp: new Date(Date.now() - 1000 * 60 * 5),
-    },
-    {
-        id: "2",
-        role: "assistant",
-        content:
-            "React Hooks are functions that let you use state and other React features in functional components. They were introduced in React 16.8 as a way to use stateful logic without writing a class component.\n\nHere are some of the most commonly used hooks:\n\n1. **useState**: Allows you to add state to functional components.\n\n```jsx\nconst [count, setCount] = useState(0);\n```\n\n2. **useEffect**: Lets you perform side effects in function components. It's similar to lifecycle methods like componentDidMount, componentDidUpdate, and componentWillUnmount combined.\n\n```jsx\nuseEffect(() => {\n  document.title = `You clicked ${count} times`;\n  \n  return () => {\n    // Cleanup code (similar to componentWillUnmount)\n  };\n}, [count]); // Only re-run if count changes\n```\n\n3. **useContext**: Accepts a context object and returns the current context value.\n\n4. **useReducer**: An alternative to useState for more complex state logic.\n\n5. **useCallback**: Returns a memoized callback function.\n\n6. **useMemo**: Returns a memoized value.\n\n7. **useRef**: Returns a mutable ref object.\n\nHooks follow two important rules:\n- Only call hooks at the top level (not inside loops, conditions, or nested functions)\n- Only call hooks from React function components or custom hooks\n\nWould you like me to explain any specific hook in more detail?",
-        timestamp: new Date(Date.now() - 1000 * 60 * 4),
-        model: "gpt-4o",
-    },
-    {
-        id: "3",
-        role: "user",
-        content: "Can you explain useEffect in more detail?",
-        timestamp: new Date(Date.now() - 1000 * 60 * 3),
-    },
-]
+import { modelConfig, useAiModels } from "@/hooks/use-ai-models"
+import type { ModelProvider } from "@/types/database.types"
 
 interface SingleChatViewProps {
     selectedModel: string
     setSelectedModel: (model: string) => void
     sidebarOpen: boolean
     setSidebarOpen: (open: boolean) => void
+    userTier: "standard" | "advance" | "premium"
 }
 
 export default function SingleChatView({
@@ -62,43 +30,79 @@ export default function SingleChatView({
     setSelectedModel,
     sidebarOpen,
     setSidebarOpen,
+    userTier,
 }: SingleChatViewProps) {
-    const [messages, setMessages] = useState(SAMPLE_MESSAGES)
-    const [isLoading, setIsLoading] = useState(false)
-    const [modelDropdownOpen, setModelDropdownOpen] = useState(false)
     const isMobile = useMediaQuery("(max-width: 768px)")
+    const messagesEndRef = useRef<HTMLDivElement>(null)
+    const [error, setError] = useState<string | null>(null)
+    const [modelDropdownOpen, setModelDropdownOpen] = useState(false)
 
-    const handleSendMessage = (message: string) => {
-        // Add user message
-        const userMessage = {
-            id: Date.now().toString(),
-            role: "user",
-            content: message,
-            timestamp: new Date(),
+    // Use the updated AI models hook
+    const {
+        activeModel,
+        setActiveModel,
+        messages,
+        append,
+        isLoading,
+        input,
+        setInput,
+        getAvailableModels,
+    } = useAiModels(userTier)
+
+    // Sync the selected model with activeModel in the hook
+    useEffect(() => {
+        if (selectedModel !== activeModel) {
+            setActiveModel(selectedModel as ModelProvider)
         }
+    }, [selectedModel, activeModel, setActiveModel])
 
-        setMessages([...messages, userMessage])
+    const availableModels = getAvailableModels()
+    const AI_MODELS = availableModels.map(provider => ({
+        id: provider,
+        name: modelConfig[provider].name,
+    }))
 
-        // Simulate AI response
-        setIsLoading(true)
+    // Function to scroll to the bottom of the chat
+    const scrollToBottom = () => {
+        if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+        }
+    };
 
-        // Simulate API delay
-        setTimeout(() => {
-            const assistantMessage = {
-                id: (Date.now() + 1).toString(),
-                role: "assistant",
-                content: `This is a simulated response to: "${message}"`,
-                timestamp: new Date(),
-                model: selectedModel,
+    // Scroll to bottom when messages change
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
+
+    // Validate selected model on initial load
+    useEffect(() => {
+        if (selectedModel && !availableModels.includes(selectedModel as ModelProvider)) {
+            // If current selected model is not available, select the first available one
+            if (availableModels.length > 0) {
+                setSelectedModel(availableModels[0]);
             }
+        }
+    }, [selectedModel, availableModels, setSelectedModel]);
 
-            setMessages((prev) => [...prev, assistantMessage])
-            setIsLoading(false)
-        }, 2000)
+    const handleSendMessage = async (message: string) => {
+        setError(null);
+        try {
+            // Use the append method from useChat hook
+            await append({
+                role: "user",
+                content: message,
+            });
+
+            // Input clearing is handled by the hook
+            scrollToBottom();
+        } catch (error) {
+            console.error("Error in chat:", error);
+            setError("Failed to send message. Please try again.");
+        }
     }
 
     const getModelName = (modelId: string) => {
-        return AI_MODELS.find((model) => model.id === modelId)?.name || modelId
+        return modelConfig[modelId as ModelProvider]?.name || modelId
     }
 
     return (
@@ -125,15 +129,19 @@ export default function SingleChatView({
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
-                        <DropdownMenuRadioGroup value={selectedModel} onValueChange={setSelectedModel}>
+                        <DropdownMenuRadioGroup value={selectedModel} onValueChange={(value) => {
+                            setSelectedModel(value);
+                            setActiveModel(value as ModelProvider);
+                        }}>
                             {AI_MODELS.map((model) => (
                                 <DropdownMenuRadioItem key={model.id} value={model.id} className="flex items-center gap-2">
                                     <Checkbox
                                         id={`model-${model.id}`}
                                         checked={selectedModel === model.id}
                                         onCheckedChange={() => {
-                                            setSelectedModel(model.id)
-                                            setModelDropdownOpen(false)
+                                            setSelectedModel(model.id);
+                                            setActiveModel(model.id as ModelProvider);
+                                            setModelDropdownOpen(false);
                                         }}
                                     />
                                     <span>{model.name}</span>
@@ -146,72 +154,126 @@ export default function SingleChatView({
 
             <ScrollArea className="flex-1 p-4 overflow-y-auto">
                 <div className="max-w-3xl mx-auto">
-                    {messages.map((message) => (
-                        <div
-                            key={message.id}
-                            className={`mb-6 ${message.role === "user" ? "flex justify-end" : "flex justify-start"}`}
-                        >
-                            <div className={`flex max-w-[80%] ${message.role === "user" ? "flex-row-reverse" : ""}`}>
-                                <div
-                                    className={`flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-md border shadow ${message.role === "user" ? "ml-2 bg-primary text-primary-foreground" : "mr-2 bg-muted"}`}
-                                >
-                                    {message.role === "user" ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
-                                </div>
-                                <div className={`flex flex-col ${message.role === "user" ? "items-end" : "items-start"}`}>
-                                    <div
-                                        className={`rounded-lg px-4 py-2 ${message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"}`}
-                                    >
-                                        <div className="whitespace-pre-wrap">{message.content}</div>
-                                    </div>
-                                    <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                                        <span>
-                                            {message.timestamp.toLocaleTimeString([], {
-                                                hour: "2-digit",
-                                                minute: "2-digit",
-                                            })}
-                                        </span>
-                                        {message.role === "assistant" && message.model && (
-                                            <span className="rounded bg-muted px-1 py-0.5">{getModelName(message.model)}</span>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
+                    {error && (
+                        <div className="mb-4 p-4 bg-red-50 text-red-500 rounded-md">
+                            {error}
                         </div>
-                    ))}
+                    )}
 
-                    {isLoading && (
-                        <div className="flex justify-start mb-6">
-                            <div className="flex">
-                                <div className="flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-md border shadow mr-2 bg-muted">
-                                    <Bot className="h-4 w-4" />
-                                </div>
-                                <div className="flex flex-col items-start">
-                                    <div className="rounded-lg px-4 py-2 bg-muted">
-                                        <div className="flex items-center gap-1">
-                                            <div className="h-2 w-2 rounded-full bg-current animate-bounce" />
-                                            <div className="h-2 w-2 rounded-full bg-current animate-bounce [animation-delay:0.2s]" />
-                                            <div className="h-2 w-2 rounded-full bg-current animate-bounce [animation-delay:0.4s]" />
-                                        </div>
-                                    </div>
-                                    <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                                        <span>
-                                            {new Date().toLocaleTimeString([], {
-                                                hour: "2-digit",
-                                                minute: "2-digit",
-                                            })}
-                                        </span>
-                                        <span className="rounded bg-muted px-1 py-0.5">{getModelName(selectedModel)}</span>
-                                    </div>
-                                </div>
+                    {messages.length === 0 && (
+                        <div className="flex items-center justify-center h-full">
+                            <div className="text-center p-8">
+                                <h3 className="text-lg font-medium mb-2">Start a conversation</h3>
+                                <p className="text-muted-foreground">Send a message to begin chatting with {getModelName(selectedModel)}</p>
                             </div>
                         </div>
                     )}
+
+                    {messages.map((message, index) => {
+                        // Determine if we should show loading animation - only show for the latest user message
+                        // when the next message hasn't arrived yet and the model is loading
+                        const isLastUserMessage = message.role === "user" &&
+                            index === messages.length - 1 &&
+                            isLoading;
+
+                        return (
+                            <div
+                                key={message.id}
+                                className={`mb-6 ${message.role === "user" ? "flex justify-end" : "flex justify-start"}`}
+                            >
+                                <div className={`flex max-w-[80%] ${message.role === "user" ? "flex-row-reverse" : ""}`}>
+                                    <div
+                                        className={`flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-md border shadow ${message.role === "user" ? "ml-2 bg-primary text-primary-foreground" : "mr-2 bg-muted"}`}
+                                    >
+                                        {message.role === "user" ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+                                    </div>
+                                    <div className={`flex flex-col ${message.role === "user" ? "items-end" : "items-start"} w-full`}>
+                                        <div
+                                            className={`rounded-lg px-4 py-2 w-full ${message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"}`}
+                                        >
+                                            {message.role === "assistant" && message.content === "" ? (
+                                                <div className="flex items-center gap-2">
+                                                    <div className="flex items-center gap-1">
+                                                        <div className="h-2 w-2 rounded-full bg-current animate-bounce" />
+                                                        <div className="h-2 w-2 rounded-full bg-current animate-bounce [animation-delay:0.2s]" />
+                                                        <div className="h-2 w-2 rounded-full bg-current animate-bounce [animation-delay:0.4s]" />
+                                                    </div>
+                                                    <span className="text-xs text-muted-foreground">Generating response...</span>
+                                                </div>
+                                            ) : (
+                                                <div className="whitespace-pre-wrap">
+                                                    {message.content}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                                            <span>
+                                                {new Date().toLocaleTimeString([], {
+                                                    hour: "2-digit",
+                                                    minute: "2-digit",
+                                                })}
+                                            </span>
+                                            {message.role === "assistant" && (
+                                                <span className="rounded bg-muted px-1 py-0.5">
+                                                    {getModelName(selectedModel)}
+                                                    {message.content === "" && "..."}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+
+                    {/* Show loading animation if the last message is from user and we're waiting for a response */}
+                    {messages.length > 0 &&
+                        messages[messages.length - 1].role === "user" &&
+                        isLoading && (
+                            <div className="mb-6 flex justify-start">
+                                <div className="flex max-w-[80%]">
+                                    <div className="flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-md border shadow mr-2 bg-muted">
+                                        <Bot className="h-4 w-4" />
+                                    </div>
+                                    <div className="flex flex-col items-start w-full">
+                                        <div className="rounded-lg px-4 py-2 w-full bg-muted">
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-1">
+                                                    <div className="h-2 w-2 rounded-full bg-current animate-bounce" />
+                                                    <div className="h-2 w-2 rounded-full bg-current animate-bounce [animation-delay:0.2s]" />
+                                                    <div className="h-2 w-2 rounded-full bg-current animate-bounce [animation-delay:0.4s]" />
+                                                </div>
+                                                <span className="text-xs text-muted-foreground">Generating response...</span>
+                                            </div>
+                                        </div>
+                                        <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                                            <span>
+                                                {new Date().toLocaleTimeString([], {
+                                                    hour: "2-digit",
+                                                    minute: "2-digit",
+                                                })}
+                                            </span>
+                                            <span className="rounded bg-muted px-1 py-0.5">
+                                                {getModelName(selectedModel)}...
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                    <div ref={messagesEndRef} />
                 </div>
             </ScrollArea>
 
             <div className="border-t p-4">
                 <div className="max-w-3xl mx-auto">
-                    <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
+                    <ChatInput
+                        onSendMessage={handleSendMessage}
+                        isLoading={isLoading}
+                        input={input}
+                        setInput={setInput}
+                    />
                 </div>
             </div>
         </>

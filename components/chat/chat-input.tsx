@@ -6,22 +6,30 @@ import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Send, Mic, ImageIcon, Paperclip, X } from "lucide-react"
+import { Send, Mic, ImageIcon, Paperclip, X, Loader2 } from "lucide-react"
 
 interface ChatInputProps {
     onSendMessage: (message: string) => void
-    isLoading: boolean
+    isLoading?: boolean
+    input?: string
+    setInput?: (value: string) => void
 }
 
-export function ChatInput({ onSendMessage, isLoading }: ChatInputProps) {
-    const [message, setMessage] = useState("")
+export function ChatInput({ onSendMessage, isLoading, input: externalInput, setInput: setExternalInput }: ChatInputProps) {
+    const [internalInput, setInternalInput] = useState("")
     const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+    // Determine whether to use external or internal state
+    const inputValue = externalInput !== undefined ? externalInput : internalInput
+    const setInputValue = setExternalInput !== undefined ? setExternalInput : setInternalInput
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
-        if (message.trim() && !isLoading) {
-            onSendMessage(message)
-            setMessage("")
+        if (inputValue.trim() && !isLoading) {
+            onSendMessage(inputValue.trim())
+            if (!setExternalInput) {
+                setInternalInput("")
+            }
 
             // Reset textarea height
             if (textareaRef.current) {
@@ -44,15 +52,15 @@ export function ChatInput({ onSendMessage, isLoading }: ChatInputProps) {
             textarea.style.height = "auto"
             textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`
         }
-    }, [message])
+    }, [inputValue])
 
     return (
         <form onSubmit={handleSubmit} className="relative">
             <div className="relative flex items-end rounded-lg border bg-background shadow-sm focus-within:ring-1 focus-within:ring-ring">
                 <Textarea
                     ref={textareaRef}
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Message..."
                     className="min-h-[60px] max-h-[200px] flex-1 resize-none border-0 p-3 shadow-none focus-visible:ring-0"
@@ -115,9 +123,16 @@ export function ChatInput({ onSendMessage, isLoading }: ChatInputProps) {
                                         type="submit"
                                         size="icon"
                                         className="h-8 w-8 rounded-full"
-                                        disabled={!message.trim() || isLoading}
+                                        disabled={!inputValue.trim() || isLoading}
                                     >
-                                        <Send className="h-4 w-4" />
+                                        {isLoading ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                Sending
+                                            </>
+                                        ) : (
+                                            <Send className="h-4 w-4" />
+                                        )}
                                         <span className="sr-only">Send message</span>
                                     </Button>
                                 </TooltipTrigger>
@@ -128,13 +143,13 @@ export function ChatInput({ onSendMessage, isLoading }: ChatInputProps) {
                 </div>
             </div>
 
-            {message.trim() && (
+            {inputValue.trim() && (
                 <Button
                     type="button"
                     size="icon"
                     variant="ghost"
                     className="absolute right-48 top-3 h-6 w-6 rounded-full opacity-70"
-                    onClick={() => setMessage("")}
+                    onClick={() => setInputValue("")}
                 >
                     <X className="h-4 w-4" />
                     <span className="sr-only">Clear input</span>

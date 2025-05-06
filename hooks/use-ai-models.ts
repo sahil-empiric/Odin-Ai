@@ -1,103 +1,47 @@
-"use client"
+'use client'
 
-import { useState } from "react"
-import { openai } from "@ai-sdk/openai"
-import { deepseek } from "@ai-sdk/deepseek"
-import { anthropic } from "@ai-sdk/anthropic"
-import { google } from '@ai-sdk/google';
-import { mistral } from "@ai-sdk/mistral"
-import { generateText, streamText } from "ai"
-import type { ModelProvider } from "@/types/database.types"
+import { useState } from 'react'
+import { useChat } from 'ai/react'
+import type { Message, ModelProvider } from '@/types/database.types'
 
 type ModelConfig = {
   [key in ModelProvider]: {
     name: string
-    model: any
-    tierRequired: "free" | "basic" | "premium"
+    tierRequired: 'standard' | 'advance' | 'premium'
   }
 }
 
 export const modelConfig: ModelConfig = {
-  openai: {
-    name: "GPT-4o",
-    model: openai("gpt-4o"),
-    tierRequired: "free",
-  },
-  deepseek: {
-    name: "DeepSeek Reasoner",
-    model: deepseek("deepseek-reasoner"),
-    tierRequired: "basic",
-  },
-  gemini: {
-    name: "Gemini Pro",
-    model: google("gemini-pro"),
-    tierRequired: "basic",
-  },
-  anthropic: {
-    name: "Claude 3 Opus",
-    model: anthropic("claude-3-opus-20240229"),
-    tierRequired: "premium",
-  },
-  mistral: {
-    name: "Mistral Large",
-    model: mistral("mistral-large-latest"),
-    tierRequired: "premium",
-  },
+  openai: { name: 'GPT-4o', tierRequired: 'premium' },
+  deepseek: { name: 'DeepSeek Reasoner', tierRequired: 'premium' },
+  google: { name: 'Gemini Pro', tierRequired: 'premium' },
+  anthropic: { name: 'Claude 3 Opus', tierRequired: 'premium' },
+  mistral: { name: 'Mistral Large', tierRequired: 'premium' }
 }
 
-export function useAiModels(userTier: "free" | "basic" | "premium") {
-  const [isGenerating, setIsGenerating] = useState(false)
+export function useAiModels(userTier: 'standard' | 'advance' | 'premium') {
+  const [activeModel, setActiveModel] = useState<ModelProvider>('openai')
+  const { messages, append, isLoading, input, setInput } = useChat({
+    api: '/api/chat',
+    body: { model: activeModel }
+  })
 
   const getAvailableModels = () => {
-    const tierValues = { free: 1, basic: 2, premium: 3 }
-    const userTierValue = tierValues[userTier]
-
-    return Object.entries(modelConfig)
-      .filter(([_, config]) => {
-        const modelTierValue = tierValues[config.tierRequired]
-        return userTierValue >= modelTierValue
-      })
-      .map(([key]) => key as ModelProvider)
-  }
-
-  const generateResponse = async (provider: ModelProvider, prompt: string, onChunk?: (chunk: string) => void) => {
-    setIsGenerating(true)
-    try {
-      const modelInfo = modelConfig[provider]
-
-      if (onChunk) {
-        const result = streamText({
-          model: modelInfo.model,
-          prompt,
-          onChunk: (event: { chunk: { type: string; textDelta?: string } }) => {
-            const { chunk } = event;
-            if (chunk.type === "text-delta" && chunk.textDelta) {
-              onChunk(chunk.textDelta);
-            }
-          },
-        })
-
-        return result.text
-      } else {
-        const { text } = await generateText({
-          model: modelInfo.model,
-          prompt,
-        })
-
-        return text
-      }
-    } catch (error) {
-      console.error("Error generating response:", error)
-      throw error
-    } finally {
-      setIsGenerating(false)
-    }
+    const tierValues = { standard: 1, advance: 2, premium: 3 }
+    return (Object.keys(modelConfig) as ModelProvider[]).filter(provider =>
+      tierValues[modelConfig[provider].tierRequired] <= tierValues[userTier]
+    )
   }
 
   return {
-    isGenerating,
+    activeModel,
+    setActiveModel,
+    messages,
+    append,
+    isLoading,
+    input,
+    setInput,
     getAvailableModels,
-    generateResponse,
-    modelConfig,
+    modelConfig
   }
 }
